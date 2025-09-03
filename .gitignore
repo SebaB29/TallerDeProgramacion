@@ -1,0 +1,26 @@
+# Archivos de compilación
+/target/
+
+# Archivos de dependencias
+Cargo.lock
+
+# Archivos temporales
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Archivos de backup
+*~
+
+# Configuración de IDEs/editores
+.vscode/
+.idea/
+*.iml
+
+# Archivos generados por pruebas
+*.profraw
+
+# MacOS / Linux / Windows basura del sistema
+.DS_Store
+Thumbs.db
