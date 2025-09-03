@@ -1,5 +1,5 @@
 # Archivos de compilación
-/target/
+*/target/
 
 # Archivos de dependencias
 Cargo.lock
