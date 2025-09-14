@@ -30,14 +30,8 @@ fn get_address() -> Result<String, ()> {
     Ok(String::from(&args[1]))
 }
 
-fn create_listener(address: &str) -> Result<TcpListener, ()> {
-    match TcpListener::bind(address) {
-        Ok(l) => Ok(l),
-        Err(e) => {
-            eprintln!("ERROR \"No se pudo bindear: {}\"", e);
-            Err(())
-        }
-    }
+fn create_listener(address: &str) -> Result<TcpListener, String> {
+    TcpListener::bind(address).map_err(|e| format!("No se pudo bindear: {}", e))
 }
 
 fn run_server(listener: TcpListener) {
@@ -81,60 +75,61 @@ fn handle_connection(stream: TcpStream, state: Arc<Mutex<i128>>) {
 }
 
 fn parse_line(l: &str, state: &Arc<Mutex<i128>>, writer: &mut TcpStream) {
-    match parse_message(&l) {
+    match parse_message(l) {
         Ok(Message::Op(op)) => {
-            let mut guard = match state.lock() {
-                Ok(g) => g,
-                Err(_) => {
-                    let _ = writer.write_all(b"ERROR \"Estado inaccesible\"\n");
-                    return;
+            if let Some(mut guard) = lock_state(state, writer) {
+                if let Err(msg) = apply_operation(op, &mut guard) {
+                    let _ = writer.write_all(format!("ERROR \"{}\"\n", msg).as_bytes());
+                } else {
+                    let _ = writer.write_all(b"OK\n");
                 }
-            };
-            apply_operation(op, &mut guard, writer);
+            }
         }
         Ok(Message::Get) => {
-            let guard = match state.lock() {
-                Ok(g) => g,
-                Err(_) => {
-                    let _ = writer.write_all(b"ERROR \"Estado inaccesible\"\n");
-                    return;
-                }
-            };
-            let msg = format!("VALUE {}\n", *guard);
-            if let Err(e) = writer.write_all(msg.as_bytes()) {
-                eprintln!("ERROR \"{}\"", e);
-                return;
+            if let Some(guard) = lock_state(state, writer) {
+                send_value(&guard, writer);
             }
         }
         Ok(_) => {
-            // OK / VALUE / ERROR no esperados como input por cliente; enviar error
             let _ = writer.write_all(b"ERROR \"unexpected message\"");
         }
-        Err(parse_err) => {
-            let msg = format!("ERROR \"{}\"\n", parse_err);
-            if let Err(e) = writer.write_all(msg.as_bytes()) {
-                eprintln!("ERROR \"{}\"", e);
-                return;
-            }
-        }
+        Err(parse_err) => send_parse_error(&parse_err, writer),
     }
 }
 
-fn apply_operation(op: Operation, guard: &mut i128, writer: &mut TcpStream) {
+fn apply_operation(op: Operation, guard: &mut i128) -> Result<(), String> {
     match calculator::apply_operation(*guard, &op) {
         Ok(new_val) => {
             *guard = new_val;
-            if let Err(e) = writer.write_all(b"OK\n") {
-                eprintln!("ERROR \"{}\"", e);
-                return;
-            }
+            Ok(())
         }
-        Err(motivo) => {
-            let msg = format!("ERROR \"{}\"\n", motivo);
-            if let Err(e) = writer.write_all(msg.as_bytes()) {
-                eprintln!("ERROR \"{}\"", e);
-                return;
-            }
+        Err(motivo) => Err(motivo),
+    }
+}
+
+fn send_value(guard: &i128, writer: &mut TcpStream) {
+    let msg = format!("VALUE {}\n", *guard);
+    if let Err(e) = writer.write_all(msg.as_bytes()) {
+        eprintln!("ERROR \"{}\"", e);
+    }
+}
+
+fn send_parse_error(parse_err: &str, writer: &mut TcpStream) {
+    let msg = format!("ERROR \"{}\"\n", parse_err);
+    if let Err(e) = writer.write_all(msg.as_bytes()) {
+        eprintln!("ERROR \"{}\"", e);
+    }
+}
+
+fn lock_state<'a>(
+    state: &'a Arc<Mutex<i128>>,
+    writer: &mut TcpStream,
+) -> Option<std::sync::MutexGuard<'a, i128>> {
+    match state.lock() {
+        Ok(g) => Some(g),
+        Err(_) => {
+            let _ = writer.write_all(b"ERROR \"Estado inaccesible\"\n");
+            None
         }
     }
 }
