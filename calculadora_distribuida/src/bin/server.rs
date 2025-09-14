@@ -46,7 +46,7 @@ fn create_listener(address: &str) -> Result<TcpListener, String> {
 /// - Para cada conexión, crea un hilo que maneja el cliente.
 /// - Mantiene un estado compartido seguro entre hilos.
 fn run_server(listener: TcpListener) {
-    let state = Arc::new(Mutex::new(0i128));
+    let state = Arc::new(Mutex::new(0u8));
 
     for stream in listener.incoming() {
         match stream {
@@ -63,7 +63,7 @@ fn run_server(listener: TcpListener) {
 ///
 /// - Lee líneas enviadas por el cliente.
 /// - Procesa cada línea usando `handle_line`.
-fn handle_connection(stream: TcpStream, state: Arc<Mutex<i128>>) {
+fn handle_connection(stream: TcpStream, state: Arc<Mutex<u8>>) {
     let mut writer = match stream.try_clone() {
         Ok(s) => s,
         Err(e) => {
@@ -89,7 +89,7 @@ fn handle_connection(stream: TcpStream, state: Arc<Mutex<i128>>) {
 /// Retorna `Ok(())` si se procesó correctamente o `Err(String)` si hubo error.
 fn handle_line(
     line: &Result<String, std::io::Error>,
-    state: &Arc<Mutex<i128>>,
+    state: &Arc<Mutex<u8>>,
     writer: &mut TcpStream,
 ) -> Result<(), String> {
     let l = line.as_ref().map_err(|e| e.to_string())?;
@@ -105,7 +105,6 @@ fn handle_line(
         Ok(_) => send_unexpected(writer),
         Err(_) => send_parse_error("parsing error", writer),
     }
-
     Ok(())
 }
 
@@ -116,7 +115,7 @@ fn handle_line(
 /// - `writer`: stream para enviar la respuesta al cliente.
 ///
 /// Retorna `Ok(())` si se aplicó con éxito o `Err(String)` si hubo error.
-fn apply_operation(op: Operation, guard: &mut i128, writer: &mut TcpStream) -> Result<(), String> {
+fn apply_operation(op: Operation, guard: &mut u8, writer: &mut TcpStream) -> Result<(), String> {
     match calculator::apply_operation(*guard, &op) {
         Ok(new_val) => {
             *guard = new_val;
@@ -133,14 +132,13 @@ fn apply_operation(op: Operation, guard: &mut i128, writer: &mut TcpStream) -> R
 }
 
 /// Envía el valor actual del estado al cliente.
-fn send_value(guard: &i128, writer: &mut TcpStream) {
+fn send_value(guard: &u8, writer: &mut TcpStream) {
     let _ = writer.write_all(format!("VALUE {}\n", *guard).as_bytes());
 }
 
 /// Envía un mensaje de error de parseo al cliente.
 fn send_parse_error(parse_err: &str, writer: &mut TcpStream) {
     let _ = writer.write_all(format!("ERROR \"{}\"\n", parse_err).as_bytes());
-    eprintln!("ERROR \"{}\"", parse_err);
 }
 
 /// Envía un mensaje de error por mensaje inesperado.
@@ -152,9 +150,9 @@ fn send_unexpected(writer: &mut TcpStream) {
 ///
 /// Retorna un `MutexGuard` sobre el estado o `Err(String)` si no se puede acceder.
 fn lock_state<'a>(
-    state: &'a Arc<Mutex<i128>>,
+    state: &'a Arc<Mutex<u8>>,
     writer: &mut TcpStream,
-) -> Result<std::sync::MutexGuard<'a, i128>, String> {
+) -> Result<std::sync::MutexGuard<'a, u8>, String> {
     state.lock().map_err(|_| {
         let _ = writer.write_all(b"ERROR \"Estado inaccesible\"\n");
         "Estado inaccesible".to_string()

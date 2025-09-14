@@ -15,7 +15,7 @@ pub enum Message {
     Get,
     Ok,
     Err(String),
-    Value(i128),
+    Value(u8),
 }
 
 impl fmt::Display for Message {
@@ -109,9 +109,12 @@ fn parse_error(rest: &str) -> Result<Message, String> {
 fn parse_value(rest: &str) -> Result<Message, String> {
     let val_str = rest.trim();
     let v = val_str
-        .parse::<i128>()
+        .parse::<u16>()
         .map_err(|_| "VALUE invalido".to_string())?;
-    Ok(Message::Value(v))
+    if v > u8::MAX as u16 {
+        return Err("VALUE fuera de rango".to_string());
+    }
+    Ok(Message::Value(v as u8))
 }
 
 #[cfg(test)]

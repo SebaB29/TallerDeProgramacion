@@ -1,32 +1,21 @@
 use crate::operator::Operator;
 use crate::protocol::Operation;
-use std::result::Result;
 
-/// Aplica una operación aritmética sobre el valor actual.
-///
-/// # Parámetros
-/// - `current`: el valor actual del estado (i128).
-/// - `op`: la operación a aplicar, que contiene el operador y el operando.
-///
-/// # Retorna
-/// - `Ok(i128)` con el nuevo valor si la operación se realizó correctamente.
-/// - `Err(String)` con el motivo si ocurrió un error (overflow, underflow, división por cero).
-pub fn apply_operation(current: i128, op: &Operation) -> Result<i128, String> {
-    let operand = op.operand as i128;
+/// Aplica una operación aritmética sobre el valor actual (`u8`).
+/// Para +, -, * usamos aritmética wrapping (módulo 256).
+/// Para / hacemos división entera; si el operando es 0 devolvemos error.
+pub fn apply_operation(current: u8, op: &Operation) -> Result<u8, String> {
+    let operand = op.operand;
+
     match op.op {
-        Operator::Add => current
-            .checked_add(operand)
-            .ok_or_else(|| "Overflow".to_string()),
-        Operator::Sub => current
-            .checked_sub(operand)
-            .ok_or_else(|| "Underflow".to_string()),
-        Operator::Mul => current
-            .checked_mul(operand)
-            .ok_or_else(|| "Overflow".to_string()),
+        Operator::Add => Ok(current.wrapping_add(operand)),
+        Operator::Sub => Ok(current.wrapping_sub(operand)),
+        Operator::Mul => Ok(current.wrapping_mul(operand)),
         Operator::Div => {
             if operand == 0 {
                 Err("division by zero".to_string())
             } else {
+                // división entera; quedamos con el comportamiento usual de u8
                 Ok(current / operand)
             }
         }
@@ -81,44 +70,5 @@ mod tests {
             operand: 0,
         };
         assert_eq!(apply_operation(10, &op).unwrap_err(), "division by zero");
-    }
-
-    #[test]
-    fn test_add_overflow() {
-        let op = Operation {
-            op: Operator::Add,
-            operand: 1,
-        };
-        assert!(
-            apply_operation(i128::MAX, &op)
-                .unwrap_err()
-                .contains("Overflow")
-        );
-    }
-
-    #[test]
-    fn test_sub_underflow() {
-        let op = Operation {
-            op: Operator::Sub,
-            operand: 1,
-        };
-        assert!(
-            apply_operation(i128::MIN, &op)
-                .unwrap_err()
-                .contains("Underflow")
-        );
-    }
-
-    #[test]
-    fn test_mul_overflow() {
-        let op = Operation {
-            op: Operator::Mul,
-            operand: 2,
-        };
-        assert!(
-            apply_operation(i128::MAX / 2 + 1, &op)
-                .unwrap_err()
-                .contains("Overflow")
-        );
     }
 }

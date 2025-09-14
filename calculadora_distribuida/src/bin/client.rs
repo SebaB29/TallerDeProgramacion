@@ -86,13 +86,26 @@ fn send_operation(s: &str, stream: &mut TcpStream) -> Result<(), String> {
 
 /// Lee la respuesta inmediata del servidor tras una operación.
 ///
+/// - Si la respuesta es `OK`, no hace nada.
+/// - Si la respuesta es `ERROR`, lo muestra por `stderr`.
+/// - Si la respuesta es inesperada o no se puede parsear, también lo muestra por `stderr`.
+///
 /// # Errores
-/// Retorna `Err(String)` si ocurre un error al leer la respuesta.
+/// Retorna `Err(String)` solo si ocurre un error de E/S al leer la respuesta.
+/// Los errores reportados por el servidor **no interrumpen la ejecución**
+/// y se imprimen por `stderr`.
 fn read_answer(stream: &mut TcpStream) -> Result<(), String> {
     let mut resp = String::new();
     let mut buff = BufReader::new(stream);
     buff.read_line(&mut resp)
         .map_err(|e| format!("Error leyendo respuesta: {}", e))?;
+
+    match parse_message(resp.trim_end()) {
+        Ok(Message::Ok) => { /* no hacer nada, todo bien */ }
+        Ok(Message::Err(m)) => eprintln!("ERROR \"{}\"", m),
+        Ok(other) => eprintln!("ERROR \"Respuesta inesperada: {}\"", other),
+        Err(e) => eprintln!("ERROR \"{}\"", e),
+    }
 
     Ok(())
 }
