@@ -82,11 +82,15 @@ fn handle_connection(stream: TcpStream, state: Arc<Mutex<u8>>) {
 
 /// Procesa una línea recibida del cliente.
 ///
+/// # Parámetros
 /// - `line`: línea recibida del cliente.
 /// - `state`: referencia al estado compartido entre clientes.
 /// - `writer`: stream para responder al cliente.
 ///
-/// Retorna `Ok(())` si se procesó correctamente o `Err(String)` si hubo error.
+/// # Retorno
+/// Retorna `Ok(())` si se procesó la línea (incluso si contenía errores lógicos
+/// que fueron notificados al cliente), o `Err(String)` si ocurrió un error
+/// de E/S al leer la línea o al escribir la respuesta de error.
 fn handle_line(
     line: &Result<String, std::io::Error>,
     state: &Arc<Mutex<u8>>,
@@ -96,7 +100,7 @@ fn handle_line(
     match parse_message(l) {
         Ok(Message::Op(op)) => {
             let mut guard = lock_state(state, writer)?;
-            apply_operation(op, &mut guard, writer)?;
+            let _ = apply_operation(op, &mut guard, writer);
         }
         Ok(Message::Get) => {
             let guard = lock_state(state, writer)?;
@@ -110,25 +114,27 @@ fn handle_line(
 
 /// Aplica una operación matemática sobre el estado.
 ///
+/// # Parámetros
 /// - `op`: operación a aplicar.
 /// - `guard`: referencia mutable al estado.
 /// - `writer`: stream para enviar la respuesta al cliente.
 ///
-/// Retorna `Ok(())` si se aplicó con éxito o `Err(String)` si hubo error.
-fn apply_operation(op: Operation, guard: &mut u8, writer: &mut TcpStream) -> Result<(), String> {
+/// # Retorno
+/// Retorna `Ok(())` siempre.  
+/// Si la operación se aplica con éxito, envía `"OK"` al cliente.  
+/// Si ocurre un error lógico (división por cero),
+/// envía un mensaje de error al cliente.
+fn apply_operation(op: Operation, guard: &mut u8, writer: &mut TcpStream) -> Result<(), ()> {
     match calculator::apply_operation(*guard, &op) {
         Ok(new_val) => {
             *guard = new_val;
-            writer.write_all(b"OK\n").map_err(|e| e.to_string())?;
-            Ok(())
+            let _ = writer.write_all(b"OK\n");
         }
         Err(motivo) => {
-            writer
-                .write_all(format!("ERROR \"{}\"\n", motivo).as_bytes())
-                .map_err(|e| e.to_string())?;
-            Err(motivo)
+            let _ = writer.write_all(format!("ERROR \"{}\"\n", motivo).as_bytes());
         }
     }
+    Ok(())
 }
 
 /// Envía el valor actual del estado al cliente.
