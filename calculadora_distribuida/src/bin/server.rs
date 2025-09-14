@@ -76,7 +76,6 @@ fn handle_connection(stream: TcpStream, state: Arc<Mutex<i128>>) {
     for line in reader.lines() {
         if let Err(e) = handle_line(&line, &state, &mut writer) {
             eprintln!("ERROR \"{}\"", e);
-            break;
         }
     }
 }
@@ -104,7 +103,7 @@ fn handle_line(
             send_value(&guard, writer);
         }
         Ok(_) => send_unexpected(writer),
-        Err(e) => send_parse_error(&e, writer),
+        Err(_) => send_parse_error("parsing error", writer),
     }
 
     Ok(())
@@ -141,6 +140,7 @@ fn send_value(guard: &i128, writer: &mut TcpStream) {
 /// Envía un mensaje de error de parseo al cliente.
 fn send_parse_error(parse_err: &str, writer: &mut TcpStream) {
     let _ = writer.write_all(format!("ERROR \"{}\"\n", parse_err).as_bytes());
+    eprintln!("ERROR \"{}\"", parse_err);
 }
 
 /// Envía un mensaje de error por mensaje inesperado.

@@ -25,7 +25,7 @@ pub fn apply_operation(current: i128, op: &Operation) -> Result<i128, String> {
             .ok_or_else(|| "Overflow".to_string()),
         Operator::Div => {
             if operand == 0 {
-                Err("Division por cero".to_string())
+                Err("division by zero".to_string())
             } else {
                 Ok(current / operand)
             }
@@ -80,7 +80,7 @@ mod tests {
             op: Operator::Div,
             operand: 0,
         };
-        assert_eq!(apply_operation(10, &op).unwrap_err(), "Division por cero");
+        assert_eq!(apply_operation(10, &op).unwrap_err(), "division by zero");
     }
 
     #[test]
