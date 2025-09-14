@@ -5,12 +5,21 @@ use std::net::TcpStream;
 
 use calculadora_distribuida::protocol::{Message, parse_message};
 
+/// Punto de entrada del cliente.
+/// Ejecuta el cliente y maneja errores generales.
 fn main() {
     if let Err(e) = run_client() {
         eprintln!("{}", e);
     }
 }
 
+/// Ejecuta la lógica principal del cliente.
+///
+/// - Inicializa la conexión con el servidor y abre el archivo de operaciones.
+/// - Envía todas las operaciones del archivo al servidor.
+/// - Solicita el valor final al servidor y lo imprime.
+///
+/// Retorna `Ok(())` si todo fue exitoso, o `Err(String)` con un mensaje de error.
 fn run_client() -> Result<(), String> {
     let (mut stream, file) = init_client()?;
     read_file(file, &mut stream)?;
@@ -18,6 +27,15 @@ fn run_client() -> Result<(), String> {
     Ok(())
 }
 
+/// Inicializa la conexión con el servidor y abre el archivo de operaciones.
+///
+/// Retorna un tuple `(TcpStream, File)` si tiene éxito, o `Err(String)` con
+/// un mensaje de error descriptivo.
+///
+/// # Errores
+/// - Si no se reciben los argumentos correctos.
+/// - Si no se puede conectar al servidor.
+/// - Si no se puede abrir el archivo.
 fn init_client() -> Result<(TcpStream, File), String> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
@@ -29,6 +47,13 @@ fn init_client() -> Result<(TcpStream, File), String> {
     Ok((stream, file))
 }
 
+/// Lee cada línea del archivo y la envía al servidor como operación.
+///
+/// Ignora líneas vacías.
+///
+/// # Errores
+/// Retorna `Err(String)` si ocurre un error al leer el archivo o al enviar
+/// la operación al servidor.
 fn read_file(file: File, stream: &mut TcpStream) -> Result<(), String> {
     let reader = BufReader::new(file);
     for line in reader.lines() {
@@ -44,6 +69,14 @@ fn read_file(file: File, stream: &mut TcpStream) -> Result<(), String> {
     Ok(())
 }
 
+/// Envía una operación al servidor.
+///
+/// # Parámetros
+/// - `s`: operación en formato `<operador> <numero>`.
+/// - `stream`: stream TCP conectado al servidor.
+///
+/// # Errores
+/// Retorna `Err(String)` si ocurre un error al enviar los datos.
 fn send_operation(s: &str, stream: &mut TcpStream) -> Result<(), String> {
     let payload = format!("OP {}\n", s);
     stream
@@ -51,6 +84,10 @@ fn send_operation(s: &str, stream: &mut TcpStream) -> Result<(), String> {
         .map_err(|e| format!("Error enviando: {}", e))
 }
 
+/// Lee la respuesta inmediata del servidor tras una operación.
+///
+/// # Errores
+/// Retorna `Err(String)` si ocurre un error al leer la respuesta.
 fn read_answer(stream: &mut TcpStream) -> Result<(), String> {
     let mut resp = String::new();
     let mut buff = BufReader::new(stream);
@@ -60,6 +97,11 @@ fn read_answer(stream: &mut TcpStream) -> Result<(), String> {
     Ok(())
 }
 
+/// Solicita el valor final al servidor y lo imprime.
+///
+/// # Errores
+/// Retorna `Err(String)` si ocurre un error al enviar el mensaje GET o
+/// al leer la respuesta.
 fn get_final_value(stream: &mut TcpStream) -> Result<(), String> {
     stream
         .write_all(b"GET\n")
@@ -79,4 +121,52 @@ fn get_final_value(stream: &mut TcpStream) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::{TcpListener, TcpStream};
+    use std::thread;
+
+    /// Levanta un servidor TCP que responde con el mensaje dado
+    fn start_mock_server(response: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+
+        thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut reader = BufReader::new(&mut stream);
+                let mut line = String::new();
+                reader.read_line(&mut line).unwrap();
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+
+        addr
+    }
+
+    #[test]
+    fn test_send_operation_and_read_answer() {
+        let addr = start_mock_server("OK\n");
+
+        let mut stream = TcpStream::connect(addr).unwrap();
+        send_operation("+ 1", &mut stream).unwrap();
+        read_answer(&mut stream).unwrap();
+    }
+
+    #[test]
+    fn test_get_final_value_value() {
+        let addr = start_mock_server("VALUE 42\n");
+        let mut stream = TcpStream::connect(addr).unwrap();
+        get_final_value(&mut stream).unwrap();
+    }
+
+    #[test]
+    fn test_get_final_value_error() {
+        let addr = start_mock_server("ERROR \"Operacion invalida\"\n");
+        let mut stream = TcpStream::connect(addr).unwrap();
+        get_final_value(&mut stream).unwrap();
+    }
 }
