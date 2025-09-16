@@ -19,21 +19,15 @@ Cada proyecto incluye su propio README con detalles de uso, ejemplos y estructur
 ### 1. Rust: El Rompecabezas de las Sombras 🌒
 Calcula la longitud total cubierta por las sombras proyectadas por un conjunto de entidades en un mundo bidimensional, aplicando conceptos de geometría computacional y estructuras de datos.
 
-[Ver proyecto](./rompecabezas-sombras)
-
 ---
 
 ### 2. Rust: Calculadora Distribuida ⚡
 Sistema cliente-servidor para realizar operaciones aritméticas sobre un valor central compartido, utilizando hilos y sockets TCP, con comunicación basada en mensajes de texto.
 
-[Ver proyecto](./calculadora-distribuida)
-
 ---
 
 ### 3. Rust: Procesamiento Concurrente de Archivos 📂
 Lee operaciones desde múltiples archivos y las aplica de forma secuencial o concurrente, explorando mecanismos de sincronización con locks y canales (`mpsc`).
-
-[Ver proyecto](./procesamiento-concurrente)
 
 ---
 
