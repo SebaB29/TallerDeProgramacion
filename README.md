@@ -1,4 +1,4 @@
-# Colección de Proyectos en Rust 🦀
+# Taller de Programación 🦀
 
 <p align="justify">
 Este repositorio contiene una serie de proyectos en <b>Rust</b> diseñados para practicar conceptos de <b>concurrencia</b>, <b>comunicación entre procesos</b> y <b>procesamiento de datos</b>.  
