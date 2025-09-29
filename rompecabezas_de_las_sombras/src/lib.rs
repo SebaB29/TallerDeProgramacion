@@ -1,3 +1,3 @@
+pub mod errors;
 pub mod flatlander;
 pub mod program;
-pub mod errors;
