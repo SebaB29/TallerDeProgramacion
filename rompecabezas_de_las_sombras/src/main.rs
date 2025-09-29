@@ -1,3 +1,4 @@
+mod errors;
 mod flatlander;
 mod program;
 

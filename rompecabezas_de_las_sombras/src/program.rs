@@ -1,3 +1,4 @@
+use crate::errors::Errores;
 use crate::flatlander::Flatlander;
 use std::io;
 
@@ -23,7 +24,7 @@ pub fn ejecutar_programa() {
         Ok(f) => f,
         Err(msg) => {
             eprintln!("{}", msg);
-            return; // aborta ejecución
+            return;
         }
     };
 
@@ -38,15 +39,15 @@ pub fn ejecutar_programa() {
 ///
 /// # Returns
 /// - `Ok((f64, usize))`: El ángulo y la cantidad de flatlanders.
-/// - `Err(String)`: Mensaje de error en caso de fallo.
+/// - `Err(Errores)`: Mensaje de error en caso de fallo.
 ///
 /// # Errores
 /// - `"IO"` si ocurre un error de lectura.
 /// - Propaga los errores de [`extraer_datos_iniciales`].
-fn procesar_entrada() -> Result<(f64, usize), String> {
+fn procesar_entrada() -> Result<(f64, usize), Errores> {
     let mut entrada = String::new();
     if io::stdin().read_line(&mut entrada).is_err() {
-        return Err(String::from("Error: \"IO\"."));
+        return Err(Errores::Io);
     }
 
     extraer_datos_iniciales(&entrada)
@@ -59,22 +60,22 @@ fn procesar_entrada() -> Result<(f64, usize), String> {
 ///
 /// # Returns
 /// - `Ok(Vec<Flatlander>)`: Lista de flatlanders válidos.
-/// - `Err(String)`: Mensaje de error si alguno de los flatlanders es inválido.
+/// - `Err(Errores)`: Mensaje de error si alguno de los flatlanders es inválido.
 ///
 /// # Errores
 /// - `"IO"` si ocurre un error de lectura.
 /// - Propaga los errores de [`extraer_datos_flatlander`].
-fn procesar_flatlanders(cantidad_flatlanders: usize) -> Result<Vec<Flatlander>, String> {
+fn procesar_flatlanders(cantidad_flatlanders: usize) -> Result<Vec<Flatlander>, Errores> {
     let mut flatlanders: Vec<Flatlander> = Vec::new();
 
     for _ in 0..cantidad_flatlanders {
         let mut datos_flatlander = String::new();
         if io::stdin().read_line(&mut datos_flatlander).is_err() {
-            return Err(String::from("Error: \"IO\"."));
+            return Err(Errores::Io);
         }
 
         if datos_flatlander.trim().is_empty() {
-            return Err(String::from("Error: \"Linea faltante\""));
+            return Err(Errores::LineaFaltante);
         }
 
         match extraer_datos_flatlander(&datos_flatlander) {
@@ -95,31 +96,31 @@ fn procesar_flatlanders(cantidad_flatlanders: usize) -> Result<Vec<Flatlander>, 
 ///
 /// # Returns
 /// - `Ok((f64, usize))`: Ángulo y cantidad de flatlanders.
-/// - `Err(String)`: Mensaje de error en caso de datos inválidos.
-pub fn extraer_datos_iniciales(entrada: &str) -> Result<(f64, usize), String> {
+/// - `Err(Errores)`: Mensaje de error en caso de datos inválidos.
+pub fn extraer_datos_iniciales(entrada: &str) -> Result<(f64, usize), Errores> {
     let datos: Vec<&str> = entrada.split_whitespace().collect();
     if datos.len() < 2 {
-        return Err(String::from("Error: \"Valor faltante\""));
+        return Err(Errores::ValorFaltante);
     }
 
     let angulo: f64 = match datos[0].parse() {
         Ok(a) => a,
-        Err(_) => return Err(String::from("Error: \"Numero invalido\"")),
+        Err(_) => return Err(Errores::NumeroInvalido),
     };
 
     // validación de rango del ángulo
     if !(10.0..=80.0).contains(&angulo) {
-        return Err(String::from("Error: \"Fuera de rango\""));
+        return Err(Errores::FueraDeRango);
     }
 
     let num_flatlanders: usize = match datos[1].parse() {
         Ok(c) => c,
-        Err(_) => return Err(String::from("Error: \"Numero invalido\"")),
+        Err(_) => return Err(Errores::NumeroInvalido),
     };
 
     // validación de rango de cantidad de flatlanders
     if !(1..=100_000).contains(&num_flatlanders) {
-        return Err(String::from("Error: \"Fuera de rango\""));
+        return Err(Errores::FueraDeRango);
     }
 
     Ok((angulo, num_flatlanders))
@@ -134,29 +135,29 @@ pub fn extraer_datos_iniciales(entrada: &str) -> Result<(f64, usize), String> {
 ///
 /// # Returns
 /// - `Ok(Flatlander)`: Instancia válida de un flatlander.
-/// - `Err(String)`: Mensaje de error en caso de datos inválidos.
-pub fn extraer_datos_flatlander(datos: &str) -> Result<Flatlander, String> {
+/// - `Err(Errores)`: Mensaje de error en caso de datos inválidos.
+pub fn extraer_datos_flatlander(datos: &str) -> Result<Flatlander, Errores> {
     let partes: Vec<&str> = datos.split_whitespace().collect();
     if partes.len() < 2 {
-        return Err(String::from("Error: \"Valor faltante\""));
+        return Err(Errores::ValorFaltante);
     }
 
     let x: f64 = match partes[0].parse() {
         Ok(n) => n,
-        Err(_) => return Err(String::from("Error: \"Numero invalido\"")),
+        Err(_) => return Err(Errores::NumeroInvalido),
     };
 
     if !(0.0..=300_000.0).contains(&x) {
-        return Err(String::from("Error: \"Fuera de rango\""));
+        return Err(Errores::FueraDeRango);
     }
 
     let altura: f64 = match partes[1].parse() {
         Ok(n) => n,
-        Err(_) => return Err(String::from("Error: \"Numero invalido\"")),
+        Err(_) => return Err(Errores::NumeroInvalido),
     };
 
     if !(1.0..=1000.0).contains(&altura) {
-        return Err(String::from("Error: \"Fuera de rango\""));
+        return Err(Errores::FueraDeRango);
     }
 
     Ok(Flatlander::new(x, altura))
@@ -230,7 +231,7 @@ mod tests {
         let entrada = "45\n";
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Valor faltante\"");
+        assert_eq!(res.unwrap_err(), Errores::ValorFaltante);
     }
 
     #[test]
@@ -238,7 +239,7 @@ mod tests {
         let entrada = "5 3\n"; // ángulo fuera de rango
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -246,7 +247,7 @@ mod tests {
         let entrada = "85 3\n"; // ángulo fuera de rango
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -254,7 +255,7 @@ mod tests {
         let entrada = "45 0\n"; // cantidad de flatlanders fuera de rango
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -262,7 +263,7 @@ mod tests {
         let entrada = "45 100001\n"; // cantidad de flatlanders fuera de rango
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -270,7 +271,7 @@ mod tests {
         let entrada = "abc 3\n";
         let res = extraer_datos_iniciales(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Numero invalido\"");
+        assert_eq!(res.unwrap_err(), Errores::NumeroInvalido);
     }
 
     #[test]
@@ -289,7 +290,7 @@ mod tests {
         let entrada = "-10 20\n"; // fuera del rango de x
         let res = extraer_datos_flatlander(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -297,7 +298,7 @@ mod tests {
         let entrada = "400000 20\n"; // fuera del rango de x
         let res = extraer_datos_flatlander(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -305,7 +306,7 @@ mod tests {
         let entrada = "100 0.5\n"; // fuera del rango de altura
         let res = extraer_datos_flatlander(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -313,7 +314,7 @@ mod tests {
         let entrada = "100 1500\n"; // fuera del rango de altura
         let res = extraer_datos_flatlander(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Fuera de rango\"");
+        assert_eq!(res.unwrap_err(), Errores::FueraDeRango);
     }
 
     #[test]
@@ -321,7 +322,7 @@ mod tests {
         let entrada = "100 abc\n";
         let res = extraer_datos_flatlander(entrada);
         assert!(res.is_err());
-        assert_eq!(res.unwrap_err(), "Error: \"Numero invalido\"");
+        assert_eq!(res.unwrap_err(), Errores::NumeroInvalido);
     }
 
     #[test]
